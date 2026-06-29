@@ -2,7 +2,7 @@
 
 Teaching Ghosts is a VS Code extension experiment: Copilot-shaped inline suggestions that coach your next move instead of writing the code for you.
 
-It starts with a local heuristic provider, and can optionally call an OpenAI-compatible LLM API for richer guidance. Either way, it uses VS Code inline completions to show comment-only direction such as:
+Teaching Ghosts calls an OpenAI-compatible LLM API and uses VS Code inline completions to show comment-only direction such as:
 
 ```ts
 if (user.isAdmin) { // Check the opposite branch before you commit to this condition.
@@ -13,7 +13,8 @@ Accepting a hint inserts a comment, not implementation code. Ignoring it leaves 
 ## What it does
 
 - Shows short directional ghost text at useful moments: blank lines, conditionals, functions, TODOs, imports, tests, and error handling.
-- Can use an OpenAI-compatible chat completions API, with heuristics as the fallback.
+- Uses an OpenAI-compatible chat completions API.
+- Does nothing until an external API key or no-auth local endpoint is configured.
 - Sends bounded nearby context by default, not the whole file.
 - Stores API keys in VS Code Secret Storage or reads them from an environment variable.
 - Uses the right comment syntax for common languages.
@@ -24,7 +25,6 @@ Accepting a hint inserts a comment, not implementation code. Ignoring it leaves 
   - `Teaching Ghosts: Explain Next Step`
   - `Teaching Ghosts: Configure LLM Provider`
   - `Teaching Ghosts: Clear Stored API Key`
-  - `Teaching Ghosts: Use Heuristic Provider`
 - Adds a status bar toggle.
 
 ## Local Testing Setup
@@ -71,7 +71,7 @@ Accepting a hint inserts a comment, not implementation code. Ignoring it leaves 
 
 ## LLM Provider Setup
 
-The extension works without an API key by using the local heuristic provider.
+The extension does nothing until an API key is available or `teachingGhosts.requireApiKey` is set to `false` for a local no-auth endpoint.
 
 To enable LLM-backed direction in the Extension Development Host:
 
@@ -87,6 +87,9 @@ To enable LLM-backed direction in the Extension Development Host:
 5. Choose one API key path:
    - Use an environment variable, default `OPENAI_API_KEY`.
    - Store the key in VS Code Secret Storage.
+   - Use no API key for a local OpenAI-compatible endpoint that does not require authentication.
+
+You can use your own local LLM as long as it exposes an OpenAI-compatible chat completions API. For example, set `teachingGhosts.baseUrl` to a local endpoint such as `http://localhost:11434/v1` or `http://localhost:1234/v1`, set `teachingGhosts.model` to the local model name, and set `teachingGhosts.requireApiKey` to `false` if that endpoint does not use authentication.
 
 The provider sends:
 
@@ -97,7 +100,7 @@ The provider sends:
 
 It does not send the whole file unless `teachingGhosts.sendFullFileContext` is enabled.
 
-If the API key is missing, the request times out, the provider errors, or the response looks like implementation code, Teaching Ghosts falls back to local heuristic direction.
+If required authentication is missing, the request times out, the provider errors, or the response looks like implementation code, Teaching Ghosts shows no suggestion.
 
 ## Test Commands
 
@@ -120,10 +123,11 @@ npm run watch
 ```json
 {
   "teachingGhosts.enabled": true,
-  "teachingGhosts.provider": "heuristic",
+  "teachingGhosts.provider": "openai-compatible",
   "teachingGhosts.baseUrl": "https://api.openai.com/v1",
   "teachingGhosts.model": "gpt-4.1-mini",
   "teachingGhosts.apiKeyEnvVar": "OPENAI_API_KEY",
+  "teachingGhosts.requireApiKey": true,
   "teachingGhosts.languages": ["typescript", "python", "markdown"],
   "teachingGhosts.maxSuggestionLength": 260,
   "teachingGhosts.showStatusBar": true,

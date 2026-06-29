@@ -1,4 +1,4 @@
-export type DirectionProviderId = 'heuristic' | 'openai-compatible';
+export type DirectionProviderId = 'openai-compatible';
 
 export interface DirectionDiagnostic {
   severity: 'error' | 'warning' | 'info' | 'hint';
@@ -32,7 +32,7 @@ export interface DirectionProvider {
 }
 
 export interface OpenAiCompatibleConfig {
-  apiKey: string;
+  apiKey?: string;
   baseUrl: string;
   model: string;
   responseTokenLimit: number;

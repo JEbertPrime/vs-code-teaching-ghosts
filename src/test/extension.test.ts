@@ -14,6 +14,7 @@ export const extensionTests: TestCase[] = [
       assert.ok(commands.includes('teachingGhosts.explainNextStep'));
       assert.ok(commands.includes('teachingGhosts.configureProvider'));
       assert.ok(commands.includes('teachingGhosts.clearApiKey'));
+      assert.ok(!commands.includes('teachingGhosts.useHeuristicProvider'));
     }
   },
   {
@@ -23,6 +24,8 @@ export const extensionTests: TestCase[] = [
 
       assert.strictEqual(config.get<string>('suggestionMode'), 'automatic');
       assert.strictEqual(config.get<number>('automaticSuggestionDelayMs'), 1800);
+      assert.strictEqual(config.get<string>('provider'), 'openai-compatible');
+      assert.strictEqual(config.get<boolean>('requireApiKey'), true);
     }
   }
 ];

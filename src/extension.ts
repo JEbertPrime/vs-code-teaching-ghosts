@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { formatTeachingDirection, getCommentStyle } from './direction';
 import { buildDirectionRequest, DirectionRequestOptions } from './llm/context';
-import { HeuristicDirectionProvider, OpenAiCompatibleDirectionProvider } from './llm/providers';
+import { OpenAiCompatibleDirectionProvider } from './llm/providers';
 import { DirectionProviderId, DirectionRequest } from './llm/types';
 
 const defaultLanguages = [
@@ -67,7 +67,6 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('teachingGhosts.explainNextStep', explainNextStep),
     vscode.commands.registerCommand('teachingGhosts.configureProvider', () => configureProvider(context)),
     vscode.commands.registerCommand('teachingGhosts.clearApiKey', () => clearStoredApiKey(context)),
-    vscode.commands.registerCommand('teachingGhosts.useHeuristicProvider', useHeuristicProvider),
     vscode.commands.registerCommand(
       acceptContinuationCommand,
       (uri: string, continuation: string[]) => directionEngine.setAcceptedContinuation(uri, continuation)
@@ -237,8 +236,12 @@ async function configureProvider(context: vscode.ExtensionContext): Promise<void
         detail: 'Stored locally by VS Code, not in settings.json.'
       },
       {
+        label: 'No API key',
+        detail: 'Use this for local OpenAI-compatible endpoints that do not require authentication.'
+      },
+      {
         label: 'Skip API key for now',
-        detail: 'The provider will fall back to heuristic suggestions until a key is available.'
+        detail: 'No suggestions will appear until an API key is available.'
       }
     ],
     {
@@ -255,6 +258,11 @@ async function configureProvider(context: vscode.ExtensionContext): Promise<void
   await config.update('baseUrl', baseUrl.trim(), vscode.ConfigurationTarget.Global);
   await config.update('model', model.trim(), vscode.ConfigurationTarget.Global);
   await config.update('provider', 'openai-compatible', vscode.ConfigurationTarget.Global);
+  await config.update(
+    'requireApiKey',
+    keyMode.label !== 'No API key',
+    vscode.ConfigurationTarget.Global
+  );
 
   if (keyMode.label === 'Use environment variable') {
     const envVar = await vscode.window.showInputBox({
@@ -282,6 +290,10 @@ async function configureProvider(context: vscode.ExtensionContext): Promise<void
     }
   }
 
+  if (keyMode.label === 'No API key') {
+    await context.secrets.delete(storedApiKeyKey);
+  }
+
   directionEngine.clearCache();
   updateStatusBar();
   void vscode.window.showInformationMessage('Teaching Ghosts LLM provider configured.');
@@ -291,13 +303,6 @@ async function clearStoredApiKey(context: vscode.ExtensionContext): Promise<void
   await context.secrets.delete(storedApiKeyKey);
   directionEngine.clearCache();
   void vscode.window.showInformationMessage('Teaching Ghosts stored API key cleared.');
-}
-
-async function useHeuristicProvider(): Promise<void> {
-  await getConfig().update('provider', 'heuristic', vscode.ConfigurationTarget.Global);
-  directionEngine.clearCache();
-  updateStatusBar();
-  void vscode.window.showInformationMessage('Teaching Ghosts is using the local heuristic provider.');
 }
 
 async function setRuntimeEnabled(value: boolean): Promise<void> {
@@ -376,7 +381,6 @@ interface RenderedDirection {
 }
 
 class DirectionEngine {
-  private readonly heuristicProvider = new HeuristicDirectionProvider();
   private readonly cache = new Map<string, DirectionChunk>();
   private readonly pending = new Map<string, Promise<DirectionChunk | undefined>>();
   private readonly acceptedContinuations = new Map<string, string[]>();
@@ -480,7 +484,7 @@ class DirectionEngine {
       'Teaching Ghosts can send nearby editor context, diagnostics, language, and file name to your configured LLM provider. It will not send full files unless you enable full-file context.',
       { modal: true },
       'Continue',
-      'Use Heuristics'
+      'Cancel'
     );
 
     if (answer !== 'Continue') {
@@ -496,27 +500,27 @@ class DirectionEngine {
     token: vscode.CancellationToken,
     options: DirectionEngineOptions
   ): Promise<DirectionChunk | undefined> {
-    const fallback = await this.getHeuristicSuggestion(request);
     if (getProviderId() !== 'openai-compatible') {
-      return fallback;
+      return undefined;
     }
 
     const triggerMode = getConfig().get<string>('llmTriggerMode', 'automatic');
     if (triggerMode === 'manual-only' && !options.allowLlm) {
-      return fallback;
+      return undefined;
     }
 
     if (!(await this.ensureLlmConsent(options.allowConsentPrompt))) {
-      return fallback;
+      return undefined;
     }
 
     const apiKey = await this.getApiKey();
     const baseUrl = getConfig().get<string>('baseUrl', 'https://api.openai.com/v1').trim();
     const model = getConfig().get<string>('model', 'gpt-4.1-mini').trim();
     const responseTokenLimit = getConfig().get<number>('responseTokenLimit', 256);
-    if (!apiKey || !baseUrl || !model) {
+    const requireApiKey = getConfig().get<boolean>('requireApiKey', true);
+    if ((requireApiKey && !apiKey) || !baseUrl || !model) {
       this.reportMissingKeyOnce();
-      return fallback;
+      return undefined;
     }
 
     const abort = createAbortSignal(token, getConfig().get<number>('requestTimeoutMs', 3500));
@@ -527,22 +531,17 @@ class DirectionEngine {
         model,
         responseTokenLimit
       }).getDirection(request, abort.signal);
-      return result ? { suggestion: result.suggestion, continuation: result.continuation ?? [] } : fallback;
+      return result ? { suggestion: result.suggestion, continuation: result.continuation ?? [] } : undefined;
     } catch (error) {
       if (token.isCancellationRequested) {
         return undefined;
       }
 
       this.reportProviderError(error, abort.timedOut);
-      return fallback;
+      return undefined;
     } finally {
       abort.dispose();
     }
-  }
-
-  private async getHeuristicSuggestion(request: DirectionRequest): Promise<DirectionChunk> {
-    const result = await this.heuristicProvider.getDirection(request);
-    return { suggestion: result.suggestion, continuation: result.continuation ?? [] };
   }
 
   private async getApiKey(): Promise<string | undefined> {
@@ -562,7 +561,7 @@ class DirectionEngine {
 
     this.missingKeyNoticeShown = true;
     this.channel.appendLine(
-      'OpenAI-compatible provider is selected, but no API key was found. Set the configured env var or run "Teaching Ghosts: Configure LLM Provider". Falling back to heuristics.'
+      'No Teaching Ghosts API key was found. Set the configured env var, run "Teaching Ghosts: Configure LLM Provider", or disable API-key requirements for a local no-auth endpoint.'
     );
   }
 
@@ -573,7 +572,7 @@ class DirectionEngine {
     }
 
     this.lastProviderError = message;
-    this.channel.appendLine(`${message}. Falling back to heuristics.`);
+    this.channel.appendLine(`${message}. No suggestion was shown.`);
   }
 
   private remember(key: string, suggestion: DirectionChunk): void {
@@ -632,9 +631,7 @@ class DirectionEngine {
 }
 
 function getProviderId(): DirectionProviderId {
-  return getConfig().get<string>('provider', 'heuristic') === 'openai-compatible'
-    ? 'openai-compatible'
-    : 'heuristic';
+  return 'openai-compatible';
 }
 
 function getSuggestionMode(): 'automatic' | 'on-demand' {

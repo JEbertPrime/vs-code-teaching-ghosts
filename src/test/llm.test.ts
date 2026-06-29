@@ -164,6 +164,42 @@ export const llmTests: TestCase[] = [
     }
   },
   {
+    name: 'omits authorization header when no API key is configured',
+    run: async () => {
+      let capturedHeaders: unknown;
+      const provider = new OpenAiCompatibleDirectionProvider(
+        {
+          baseUrl: 'http://localhost:11434/v1',
+          model: 'local-model',
+          responseTokenLimit: 256
+        },
+        async (_url, init) => {
+          capturedHeaders = init.headers;
+          return {
+            ok: true,
+            status: 200,
+            text: async () => '',
+            json: async () => ({
+              choices: [
+                {
+                  message: {
+                    content: '{"suggestion":"Check the boundary the local model identified."}'
+                  }
+                }
+              ]
+            })
+          } as Response;
+        }
+      );
+
+      const result = await provider.getDirection(baseRequest, new AbortController().signal);
+      assert.ok(result);
+      assert.deepStrictEqual(capturedHeaders, {
+        'Content-Type': 'application/json'
+      });
+    }
+  },
+  {
     name: 'provider returns continuation chunks for oversized responses',
     run: async () => {
       const request: DirectionRequest = {

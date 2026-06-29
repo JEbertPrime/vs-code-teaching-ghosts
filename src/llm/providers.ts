@@ -1,4 +1,3 @@
-import { buildTeachingAdvice } from '../direction';
 import { buildDirectionPrompt } from './prompt';
 import { parseDirectionResponseParts } from './response';
 import {
@@ -18,27 +17,6 @@ interface ChatCompletionResponse {
 
 type Fetcher = (url: string, init: RequestInit) => Promise<Response>;
 
-export class HeuristicDirectionProvider implements DirectionProvider {
-  readonly id = 'heuristic' as const;
-
-  async getDirection(request: DirectionRequest): Promise<DirectionResult> {
-    return {
-      suggestion: buildTeachingAdvice(
-        {
-          languageId: request.languageId,
-          fileName: request.fileName,
-          lineText: request.lineText,
-          prefixText: request.prefixText,
-          documentText: request.documentText,
-          lineNumber: request.lineNumber
-        },
-        request.maxSuggestionLength
-      ),
-      source: this.id
-    };
-  }
-}
-
 export class OpenAiCompatibleDirectionProvider implements DirectionProvider {
   readonly id = 'openai-compatible' as const;
 
@@ -48,13 +26,17 @@ export class OpenAiCompatibleDirectionProvider implements DirectionProvider {
   ) {}
 
   async getDirection(request: DirectionRequest, signal: AbortSignal): Promise<DirectionResult | undefined> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json'
+    };
+    if (this.config.apiKey) {
+      headers.Authorization = `Bearer ${this.config.apiKey}`;
+    }
+
     const response = await this.fetcher(toChatCompletionsUrl(this.config.baseUrl), {
       method: 'POST',
       signal,
-      headers: {
-        Authorization: `Bearer ${this.config.apiKey}`,
-        'Content-Type': 'application/json'
-      },
+      headers,
       body: JSON.stringify({
         model: this.config.model,
         messages: buildDirectionPrompt(request),
