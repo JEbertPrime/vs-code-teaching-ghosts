@@ -1,0 +1,210 @@
+{
+  "name": "teaching-ghosts",
+  "displayName": "Teaching Ghosts",
+  "description": "Copilot-style ghost hints that coach the next step instead of writing code for you.",
+  "version": "0.0.1",
+  "publisher": "local",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onCommand:teachingGhosts.toggle",
+    "onCommand:teachingGhosts.enable",
+    "onCommand:teachingGhosts.disable",
+    "onCommand:teachingGhosts.explainNextStep",
+    "onCommand:teachingGhosts.configureProvider",
+    "onCommand:teachingGhosts.clearApiKey",
+    "onCommand:teachingGhosts.useHeuristicProvider"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "teachingGhosts.toggle",
+        "title": "Toggle Directional Suggestions",
+        "category": "Teaching Ghosts"
+      },
+      {
+        "command": "teachingGhosts.enable",
+        "title": "Enable Directional Suggestions",
+        "category": "Teaching Ghosts"
+      },
+      {
+        "command": "teachingGhosts.disable",
+        "title": "Disable Directional Suggestions",
+        "category": "Teaching Ghosts"
+      },
+      {
+        "command": "teachingGhosts.explainNextStep",
+        "title": "Explain Next Step",
+        "category": "Teaching Ghosts"
+      },
+      {
+        "command": "teachingGhosts.configureProvider",
+        "title": "Configure LLM Provider",
+        "category": "Teaching Ghosts"
+      },
+      {
+        "command": "teachingGhosts.clearApiKey",
+        "title": "Clear Stored API Key",
+        "category": "Teaching Ghosts"
+      },
+      {
+        "command": "teachingGhosts.useHeuristicProvider",
+        "title": "Use Heuristic Provider",
+        "category": "Teaching Ghosts"
+      }
+    ],
+    "configuration": {
+      "title": "Teaching Ghosts",
+      "properties": {
+        "teachingGhosts.enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable comment-only inline coaching hints."
+        },
+        "teachingGhosts.languages": {
+          "type": "array",
+          "default": [
+            "javascript",
+            "typescript",
+            "javascriptreact",
+            "typescriptreact",
+            "python",
+            "go",
+            "rust",
+            "java",
+            "c",
+            "cpp",
+            "csharp",
+            "ruby",
+            "php",
+            "swift",
+            "kotlin",
+            "html",
+            "css",
+            "scss",
+            "markdown",
+            "json",
+            "yaml"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "description": "Language IDs where Teaching Ghosts should appear. Use [\"*\"] to allow every language."
+        },
+        "teachingGhosts.maxSuggestionLength": {
+          "type": "number",
+          "default": 260,
+          "minimum": 48,
+          "maximum": 800,
+          "description": "Maximum character length for each inline coaching chunk. Longer responses continue in later completions."
+        },
+        "teachingGhosts.showStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the Teaching Ghosts status bar toggle."
+        },
+        "teachingGhosts.provider": {
+          "type": "string",
+          "enum": [
+            "heuristic",
+            "openai-compatible"
+          ],
+          "default": "heuristic",
+          "description": "Direction provider. The OpenAI-compatible provider sends bounded editor context to the configured chat completions API."
+        },
+        "teachingGhosts.baseUrl": {
+          "type": "string",
+          "default": "https://api.openai.com/v1",
+          "description": "Base URL for an OpenAI-compatible chat completions API. The extension appends /chat/completions unless it is already present."
+        },
+        "teachingGhosts.model": {
+          "type": "string",
+          "default": "gpt-4.1-mini",
+          "description": "Model name for the OpenAI-compatible provider."
+        },
+        "teachingGhosts.apiKeyEnvVar": {
+          "type": "string",
+          "default": "OPENAI_API_KEY",
+          "description": "Environment variable to read before falling back to the API key stored in VS Code Secret Storage."
+        },
+        "teachingGhosts.sendFullFileContext": {
+          "type": "boolean",
+          "default": false,
+          "description": "Send the whole active file to the LLM provider. When disabled, only nearby lines are sent."
+        },
+        "teachingGhosts.maxContextLines": {
+          "type": "number",
+          "default": 80,
+          "minimum": 10,
+          "maximum": 400,
+          "description": "Maximum nearby context lines to send when full-file context is disabled."
+        },
+        "teachingGhosts.requestTimeoutMs": {
+          "type": "number",
+          "default": 3500,
+          "minimum": 500,
+          "maximum": 15000,
+          "description": "LLM request timeout in milliseconds before falling back to heuristic direction."
+        },
+        "teachingGhosts.responseTokenLimit": {
+          "type": "number",
+          "default": 256,
+          "minimum": 96,
+          "maximum": 1000,
+          "description": "Maximum tokens to request from the LLM provider."
+        },
+        "teachingGhosts.suggestionMode": {
+          "type": "string",
+          "enum": [
+            "automatic",
+            "on-demand"
+          ],
+          "default": "automatic",
+          "description": "Whether Teaching Ghosts may show automatic inline suggestions or only respond to manual invocation and commands."
+        },
+        "teachingGhosts.automaticSuggestionDelayMs": {
+          "type": "number",
+          "default": 1800,
+          "minimum": 0,
+          "maximum": 10000,
+          "description": "Quiet time before automatic suggestions are requested. Manual suggestions skip this delay."
+        },
+        "teachingGhosts.debounceMs": {
+          "type": "number",
+          "default": 400,
+          "minimum": 0,
+          "maximum": 2000,
+          "description": "Inline suggestion debounce in milliseconds."
+        },
+        "teachingGhosts.llmTriggerMode": {
+          "type": "string",
+          "enum": [
+            "automatic",
+            "manual-only"
+          ],
+          "default": "automatic",
+          "description": "Whether LLM suggestions may appear automatically or only for manually invoked inline suggestions and commands."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "test": "npm run compile && node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "@types/vscode": "^1.90.0",
+    "@vscode/test-electron": "^2.4.1",
+    "typescript": "^5.5.4"
+  }
+}
