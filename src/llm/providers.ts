@@ -41,7 +41,8 @@ export class OpenAiCompatibleDirectionProvider implements DirectionProvider {
         model: this.config.model,
         messages: buildDirectionPrompt(request),
         temperature: 0.2,
-        max_tokens: this.config.responseTokenLimit
+        max_completion_tokens: this.config.responseTokenLimit,
+
       })
     });
 

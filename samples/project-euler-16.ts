@@ -5,8 +5,5 @@
 
 function powerSum(num:number){
     let result:number =0
-    let bigIntNum = BigInt(num) 
-    let exponented = 2n**bigIntNum
-    exponented.toString().split('').forEach((char:string)=>result+=Number(char))  
     return result
 }
