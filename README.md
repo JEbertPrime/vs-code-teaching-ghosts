@@ -121,6 +121,32 @@ Run TypeScript in watch mode while debugging:
 npm run watch
 ```
 
+## Marketplace CI Deployment
+
+The GitHub Actions workflow in `.github/workflows/ci.yml` runs on pull requests, pushes to `main`, release tags, and manual dispatches.
+
+It does three things:
+
+- Tests the extension on Linux, macOS, and Windows.
+- Packages a `.vsix` artifact on every successful run.
+- Publishes to the VS Code Marketplace only for tags matching `v*.*.*`, or for a manual workflow dispatch with `publish` enabled.
+
+Before the first publish, configure these GitHub repository settings:
+
+- Secret: `VSCE_PAT` with a Visual Studio Marketplace publishing token.
+- Variable: `VSCE_PUBLISHER` with your Marketplace publisher ID, unless you replace `"publisher": "local"` in `package.json` with the real publisher ID.
+
+The workflow uses the `VSCE_PAT` path documented for GitHub Actions. Microsoft recommends Microsoft Entra ID for long-term automated publishing because global Azure DevOps PATs retire on December 1, 2026.
+
+To release:
+
+```bash
+npm version patch
+git push --follow-tags
+```
+
+The tag push, such as `v0.0.2`, runs the publish job after validation and packaging succeed. The publish job uses `vsce publish`, so it also runs `npm run compile` through `vscode:prepublish`.
+
 ## Settings
 
 ```json
