@@ -25,6 +25,7 @@ Accepting a hint inserts a comment, not implementation code. Ignoring it leaves 
   - `Teaching Ghosts: Explain Next Step`
   - `Teaching Ghosts: Configure LLM Provider`
   - `Teaching Ghosts: Clear Stored API Key`
+  - `Teaching Ghosts: Set Hint Detail`
 - Adds a status bar toggle.
 
 ## Local Testing Setup
@@ -91,6 +92,8 @@ To enable LLM-backed direction in the Extension Development Host:
 
 You can use your own local LLM as long as it exposes an OpenAI-compatible chat completions API. For example, set `teachingGhosts.baseUrl` to a local endpoint such as `http://localhost:11434/v1` or `http://localhost:1234/v1`, set `teachingGhosts.model` to the local model name, and set `teachingGhosts.requireApiKey` to `false` if that endpoint does not use authentication.
 
+For compatible OpenAI models, Teaching Ghosts requests structured outputs with an explicit JSON schema instead of putting the response shape in the prompt. Local or older OpenAI-compatible providers can use the prompt fallback automatically; set `teachingGhosts.structuredOutputMode` to `"disabled"` if your endpoint rejects `response_format`, or `"enabled"` if your local provider supports `json_schema` structured outputs under a model name Teaching Ghosts does not recognize yet.
+
 The provider sends:
 
 - Language ID
@@ -126,10 +129,12 @@ npm run watch
   "teachingGhosts.provider": "openai-compatible",
   "teachingGhosts.baseUrl": "https://api.openai.com/v1",
   "teachingGhosts.model": "gpt-4.1-mini",
+  "teachingGhosts.structuredOutputMode": "auto",
   "teachingGhosts.apiKeyEnvVar": "OPENAI_API_KEY",
   "teachingGhosts.requireApiKey": true,
   "teachingGhosts.languages": ["typescript", "python", "markdown"],
   "teachingGhosts.maxSuggestionLength": 260,
+  "teachingGhosts.hintDetail": "general",
   "teachingGhosts.showStatusBar": true,
   "teachingGhosts.sendFullFileContext": false,
   "teachingGhosts.maxContextLines": 80,
@@ -143,6 +148,20 @@ npm run watch
 ```
 
 Use `["*"]` for `teachingGhosts.languages` if you want hints in every language.
+
+Use `teachingGhosts.hintDetail` to choose how direct the hints should be:
+
+- `"detailed"`: detailed guidance, with pseudocode when it helps.
+- `"general"`: general direction, without being too specific.
+- `"vague"`: light nudges that only point in the right direction.
+
+You can also change this from the Command Palette with `Teaching Ghosts: Set Hint Detail`.
+
+Use `teachingGhosts.structuredOutputMode` to control how the provider asks for JSON:
+
+- `"auto"`: use schema-enforced structured outputs for known compatible OpenAI models, with a prompt-format fallback for other endpoints.
+- `"enabled"`: always send `response_format.json_schema`.
+- `"disabled"`: never send `response_format`; include the JSON response shape in the prompt instead.
 
 Use `"teachingGhosts.suggestionMode": "on-demand"` if you only want suggestions after manually invoking inline suggestions or running `Teaching Ghosts: Explain Next Step`.
 

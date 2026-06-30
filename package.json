@@ -18,7 +18,8 @@
     "onCommand:teachingGhosts.disable",
     "onCommand:teachingGhosts.explainNextStep",
     "onCommand:teachingGhosts.configureProvider",
-    "onCommand:teachingGhosts.clearApiKey"
+    "onCommand:teachingGhosts.clearApiKey",
+    "onCommand:teachingGhosts.setHintDetail"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -51,6 +52,11 @@
       {
         "command": "teachingGhosts.clearApiKey",
         "title": "Clear Stored API Key",
+        "category": "Teaching Ghosts"
+      },
+      {
+        "command": "teachingGhosts.setHintDetail",
+        "title": "Set Hint Detail",
         "category": "Teaching Ghosts"
       }
     ],
@@ -99,6 +105,21 @@
           "maximum": 800,
           "description": "Maximum character length for each inline coaching chunk. Longer responses continue in later completions."
         },
+        "teachingGhosts.hintDetail": {
+          "type": "string",
+          "enum": [
+            "detailed",
+            "general",
+            "vague"
+          ],
+          "enumDescriptions": [
+            "Detailed guidance, with pseudocode when it helps.",
+            "General direction, without being too specific.",
+            "Vague hints that only point in the right direction."
+          ],
+          "default": "general",
+          "description": "How detailed and helpful each hint should be."
+        },
         "teachingGhosts.showStatusBar": {
           "type": "boolean",
           "default": true,
@@ -121,6 +142,21 @@
           "type": "string",
           "default": "gpt-4.1-mini",
           "description": "Model name for the OpenAI-compatible provider."
+        },
+        "teachingGhosts.structuredOutputMode": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "enabled",
+            "disabled"
+          ],
+          "enumDescriptions": [
+            "Use provider-enforced JSON schema for known compatible OpenAI models, with a prompt-format fallback for other models.",
+            "Always send response_format.json_schema. Use this only when your provider supports structured outputs.",
+            "Never send response_format.json_schema; include the JSON format instruction in the prompt instead."
+          ],
+          "default": "auto",
+          "description": "Controls whether Teaching Ghosts requests provider-enforced structured outputs."
         },
         "teachingGhosts.apiKeyEnvVar": {
           "type": "string",

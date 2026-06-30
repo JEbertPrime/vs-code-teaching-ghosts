@@ -1,4 +1,6 @@
 export type DirectionProviderId = 'openai-compatible';
+export type HintDetail = 'detailed' | 'general' | 'vague';
+export type StructuredOutputMode = 'auto' | 'enabled' | 'disabled';
 
 export interface DirectionDiagnostic {
   severity: 'error' | 'warning' | 'info' | 'hint';
@@ -18,6 +20,7 @@ export interface DirectionRequest {
   contextAfter: string;
   diagnostics: DirectionDiagnostic[];
   maxSuggestionLength: number;
+  hintDetail: HintDetail;
 }
 
 export interface DirectionResult {
@@ -36,6 +39,7 @@ export interface OpenAiCompatibleConfig {
   baseUrl: string;
   model: string;
   responseTokenLimit: number;
+  structuredOutputMode: StructuredOutputMode;
 }
 
 export interface ChatMessage {

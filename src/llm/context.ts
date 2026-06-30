@@ -1,11 +1,12 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { DirectionDiagnostic, DirectionRequest } from './types';
+import { DirectionDiagnostic, DirectionRequest, HintDetail } from './types';
 
 export interface DirectionRequestOptions {
   sendFullFileContext: boolean;
   maxContextLines: number;
   maxSuggestionLength: number;
+  hintDetail: HintDetail;
 }
 
 export function buildDirectionRequest(
@@ -27,7 +28,8 @@ export function buildDirectionRequest(
     contextBefore: contextWindow.before,
     contextAfter: contextWindow.after,
     diagnostics: getNearbyDiagnostics(document, position),
-    maxSuggestionLength: options.maxSuggestionLength
+    maxSuggestionLength: options.maxSuggestionLength,
+    hintDetail: options.hintDetail
   };
 }
 

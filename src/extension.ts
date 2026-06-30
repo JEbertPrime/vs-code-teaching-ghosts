@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { formatTeachingDirection, getCommentStyle } from './direction';
 import { buildDirectionRequest, DirectionRequestOptions } from './llm/context';
 import { OpenAiCompatibleDirectionProvider } from './llm/providers';
-import { DirectionProviderId, DirectionRequest } from './llm/types';
+import { DirectionProviderId, DirectionRequest, HintDetail, StructuredOutputMode } from './llm/types';
 
 const defaultLanguages = [
   'javascript',
@@ -67,6 +67,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('teachingGhosts.explainNextStep', explainNextStep),
     vscode.commands.registerCommand('teachingGhosts.configureProvider', () => configureProvider(context)),
     vscode.commands.registerCommand('teachingGhosts.clearApiKey', () => clearStoredApiKey(context)),
+    vscode.commands.registerCommand('teachingGhosts.setHintDetail', setHintDetail),
     vscode.commands.registerCommand(
       acceptContinuationCommand,
       (uri: string, continuation: string[]) => directionEngine.setAcceptedContinuation(uri, continuation)
@@ -305,6 +306,46 @@ async function clearStoredApiKey(context: vscode.ExtensionContext): Promise<void
   void vscode.window.showInformationMessage('Teaching Ghosts stored API key cleared.');
 }
 
+async function setHintDetail(): Promise<void> {
+  const current = getHintDetail();
+  const selection = await vscode.window.showQuickPick(
+    [
+      {
+        label: 'Detailed guidance',
+        description: current === 'detailed' ? 'Current' : undefined,
+        detail: 'Detailed guidance, with pseudocode when it helps.',
+        value: 'detailed' as const
+      },
+      {
+        label: 'General direction',
+        description: current === 'general' ? 'Current' : undefined,
+        detail: 'General direction, without being too specific.',
+        value: 'general' as const
+      },
+      {
+        label: 'Vague hints',
+        description: current === 'vague' ? 'Current' : undefined,
+        detail: 'Light nudges that only point in the right direction.',
+        value: 'vague' as const
+      }
+    ],
+    {
+      title: 'Teaching Ghosts Hint Detail',
+      placeHolder: 'Choose how direct Teaching Ghosts hints should be',
+      ignoreFocusOut: true
+    }
+  );
+
+  if (!selection) {
+    return;
+  }
+
+  await getConfig().update('hintDetail', selection.value, vscode.ConfigurationTarget.Global);
+  directionEngine.clearCache();
+  updateStatusBar();
+  void vscode.window.showInformationMessage(`Teaching Ghosts hint detail set to ${selection.label}.`);
+}
+
 async function setRuntimeEnabled(value: boolean): Promise<void> {
   runtimeEnabled = value;
   await vscode.commands.executeCommand('setContext', 'teachingGhosts.enabled', value);
@@ -517,6 +558,7 @@ class DirectionEngine {
     const baseUrl = getConfig().get<string>('baseUrl', 'https://api.openai.com/v1').trim();
     const model = getConfig().get<string>('model', 'gpt-4.1-mini').trim();
     const responseTokenLimit = getConfig().get<number>('responseTokenLimit', 256);
+    const structuredOutputMode = getStructuredOutputMode();
     const requireApiKey = getConfig().get<boolean>('requireApiKey', true);
     if ((requireApiKey && !apiKey) || !baseUrl || !model) {
       this.reportMissingKeyOnce();
@@ -529,7 +571,8 @@ class DirectionEngine {
         apiKey,
         baseUrl,
         model,
-        responseTokenLimit
+        responseTokenLimit,
+        structuredOutputMode
       }).getDirection(request, abort.signal);
       return result ? { suggestion: result.suggestion, continuation: result.continuation ?? [] } : undefined;
     } catch (error) {
@@ -623,6 +666,7 @@ class DirectionEngine {
       getConfig().get<string>('model', ''),
       getConfig().get<string>('baseUrl', ''),
       getConfig().get<number>('responseTokenLimit', 256),
+      getStructuredOutputMode(),
       getConfig().get<string>('llmTriggerMode', 'automatic'),
       options.isManualInvocation ? 'manual' : 'auto',
       request.maxSuggestionLength
@@ -651,8 +695,19 @@ function getRequestOptions(): DirectionRequestOptions {
   return {
     sendFullFileContext: getConfig().get<boolean>('sendFullFileContext', false),
     maxContextLines: getConfig().get<number>('maxContextLines', 80),
-    maxSuggestionLength: getConfig().get<number>('maxSuggestionLength', 260)
+    maxSuggestionLength: getConfig().get<number>('maxSuggestionLength', 260),
+    hintDetail: getHintDetail()
   };
+}
+
+function getHintDetail(): HintDetail {
+  const value = getConfig().get<string>('hintDetail', 'general');
+  return value === 'detailed' || value === 'vague' ? value : 'general';
+}
+
+function getStructuredOutputMode(): StructuredOutputMode {
+  const value = getConfig().get<string>('structuredOutputMode', 'auto');
+  return value === 'enabled' || value === 'disabled' ? value : 'auto';
 }
 
 async function waitForQuietPeriod(token: vscode.CancellationToken, delayMs: number): Promise<boolean> {
